@@ -7,7 +7,7 @@ import time
 from vector import distance, pnt2line
 from sklearn.datasets import fetch_mldata
 from keras.layers.core import Activation, Dense
-from keras.models import Sequential
+from keras.models import Sequential,load_model
 from keras.optimizers import SGD
 from skimage.color import rgb2gray
 from skimage.measure import label, regionprops
@@ -36,13 +36,44 @@ def findLine(frame):
     minLineLength = 5
 
     lines = cv2.HoughLinesP(newFrame, 1, np.pi / 180, 100, minLineLength, maxLineGap)
-
+    print lines
     line = lines[0]
 
-    x1 = line[0,0]
-    y1 = line[0,1]
-    x2 = line[0,2]
-    y2 = line[0,3]
+    first = []
+    second = []
+    third = []
+    fourth = []
+    for arrayM in lines:
+        for array in arrayM:
+            first.append(array[0])
+            second.append(array[1])
+            third.append(array[2])
+            fourth.append(array[3])
+
+
+    min = 1500;
+    ind = 0
+    for hh in range(0,len(first)):
+        if first[hh] < min:
+             min = first[hh]
+             ind = hh
+
+    max = 0
+    inx = 0
+    for hh in range(0,len(first)):
+        if third[hh] > max:
+             max = third[hh]
+             inx = hh
+
+
+    x1 = first[ind]
+    y1 =second[ind]
+    x2 = third[inx]
+    y2 = fourth[inx]
+    # x1 = line[0,0]
+    # y1 = line[0,1]
+    # x2 = line[0,2]
+    # y2 = line[0,3]
 
     return x1,y1,x2,y2
 
@@ -88,7 +119,7 @@ prelazeci = []
 momenti = []
 
 if __name__ == "__main__":
-    f_name = "C:\\Users\\Stefan\\Desktop\\Videos\\videos\\video-2.avi"
+    f_name = 'Videos/video-0.avi'
     video = cv2.VideoCapture(f_name)
 
 
@@ -113,7 +144,7 @@ if __name__ == "__main__":
         img0 = cv2.dilate(img0, kernel)  # cv2.erode(img0,kernel)
         img0 = cv2.dilate(img0, kernel)
 
-        file_name = putanja + "\\video-" + str(t) + '.png'
+        file_name ='slike/video-'  + str(t) + '.png'
         cv2.imwrite(file_name, img0)
 
         labeled, nr_objects = ndimage.label(img0)
@@ -191,7 +222,7 @@ if __name__ == "__main__":
         t += 1
 
         cv2.imshow('frame', img)
-        file_name = putanja + "\\video-" + str(z) + '.png'
+        file_name = 'slike/video-'  + str(t) + '.png'
         cv2.imwrite(file_name, img)
         k = cv2.waitKey(30) & 0xff
 
@@ -210,8 +241,8 @@ if __name__ == "__main__":
     izvadjeni = []
     for el in prelazeci:
         for hi in el['history']:
-            if hi['t']+5<t:
-                if hi['t']+5 == momenti[zz]:
+            if hi['t']+4<t:
+                if hi['t']+4 == momenti[zz]:
                     izvadjen = {'center': hi['center'], 't': hi['t']}
         zz+=1
         izvadjeni.append(izvadjen)
@@ -219,10 +250,10 @@ if __name__ == "__main__":
 
 
 
-    putanja = "C:\\Users\\Stefan\\Desktop\\Videos\\slike\\video-"
+    putanja = 'slike/video-'
     kk = 0
     for el in izvadjeni:
-        novaputanja = putanja + str(el['t']) + ".png"
+        novaputanja = putanja + str(el['t']) + '.png'
         print novaputanja
         xi,yi = el['center']
         xi1 = xi-14
@@ -232,79 +263,83 @@ if __name__ == "__main__":
         print str(xi),str(yi)
         slika = imread(novaputanja)
         novaslika = slika[yi1 : yi2, xi1 : xi2]
-        put = "C:\\Users\\Stefan\\Desktop\\Videos\\noveslike2"+str(kk) + ".png"
+        put = 'noveslike/broj-'+str(kk) + '.png'
         cv2.imwrite(put,novaslika)
         # plt.imshow(slika)
         # plt.show()
         kk += 1
 
-    digits = fetch_mldata('MNIST original', data_home='mnist')
 
-    data = digits.data / 255.0
-    labels = digits.target.astype('int')
-
-    train_rank = 10000
-    test_rank = 100
-
-    train_subset = np.random.choice(data.shape[0], train_rank)
-    test_subset = np.random.choice(data.shape[0], test_rank)
-
-    train_data = data
-    train_labels = labels
-
-    trening = []
-    for index in range(0, len(train_data)):
-        print 'Slika po redu: ' + str(index)
-        image = train_data[index].reshape(28, 28)
-        newImg = np.lib.pad(image, (30, 30), padwithtens)
-
-        imageJustNum = newImg[:, :] > 0
-
-        labeled_img = label(imageJustNum)
-        regions = regionprops(labeled_img)
-
-        visina_sr = round((regions[0].bbox[0] + regions[0].bbox[2]) / 2)
-        sirina_sr = round((regions[0].bbox[1] + regions[0].bbox[3]) / 2)
-        DL1 = visina_sr - 14
-        TR1 = visina_sr + 14
-        DL2 = sirina_sr - 14
-        TR2 = sirina_sr + 14
-
-        img = newImg[regions[0].bbox[0]: regions[0].bbox[2], regions[0].bbox[1]: regions[0].bbox[3]]
-
-        img_crop = newImg[int(DL1): int(TR1), int(DL2): int(TR2)]
-        # plt.imshow(img_crop, 'gray')
-        # plt.show()
-
-        trening.append(img_crop.reshape(784))
-
-    trening = np.array(trening)
-
-    print trening.shape
-    # test dataset
-    test_data = data[test_subset]
-    test_labels = labels[test_subset]
-
-    train_out = to_categorical(train_labels, 10)
-    test_out = to_categorical(test_labels, 10)
-
-    model = Sequential()
-    model.add(Dense(70, input_dim=784))
-    model.add(Activation('relu'))
-    model.add(Dense(30))
-    model.add(Activation('tanh'))
-    model.add(Dense(10))
-    model.add(Activation('softmax'))
-
-    sgd = SGD(lr=0.01, decay=1e-5, momentum=0.9, nesterov=True)
-    model.compile(loss='mean_squared_error', optimizer=sgd, metrics=['accuracy'])
-
-    training = model.fit(trening, train_out, nb_epoch=20, batch_size=400, verbose=1)
-    print training.history['loss'][-1]
+    model = load_model('model.h5')
+    # digits = fetch_mldata('MNIST original', data_home='mnist')
+    #
+    # data = digits.data / 255.0
+    # labels = digits.target.astype('int')
+    #
+    # train_rank = 10000
+    # test_rank = 100
+    #
+    # train_subset = np.random.choice(data.shape[0], train_rank)
+    # test_subset = np.random.choice(data.shape[0], test_rank)
+    #
+    # train_data = data
+    # train_labels = labels
+    #
+    # trening = []
+    # for index in range(0, len(train_data)):
+    #     print 'Slika po redu: ' + str(index)
+    #     image = train_data[index].reshape(28, 28)
+    #     newImg = np.lib.pad(image, (30, 30), padwithtens)
+    #
+    #     imageJustNum = newImg[:, :] > 0
+    #
+    #     labeled_img = label(imageJustNum)
+    #     regions = regionprops(labeled_img)
+    #
+    #     visina_sr = round((regions[0].bbox[0] + regions[0].bbox[2]) / 2)
+    #     sirina_sr = round((regions[0].bbox[1] + regions[0].bbox[3]) / 2)
+    #     DL1 = visina_sr - 14
+    #     TR1 = visina_sr + 14
+    #     DL2 = sirina_sr - 14
+    #     TR2 = sirina_sr + 14
+    #
+    #     img = newImg[regions[0].bbox[0]: regions[0].bbox[2], regions[0].bbox[1]: regions[0].bbox[3]]
+    #
+    #     img_crop = newImg[int(DL1): int(TR1), int(DL2): int(TR2)]
+    #     # plt.imshow(img_crop, 'gray')
+    #     # plt.show()
+    #
+    #     trening.append(img_crop.reshape(784))
+    #
+    # trening = np.array(trening)
+    #
+    # print trening.shape
+    # # test dataset
+    # test_data = data[test_subset]
+    # test_labels = labels[test_subset]
+    #
+    # train_out = to_categorical(train_labels, 10)
+    # test_out = to_categorical(test_labels, 10)
+    #
+    # model = Sequential()
+    # model.add(Dense(70, input_dim=784))
+    # model.add(Activation('relu'))
+    # model.add(Dense(30))
+    # model.add(Activation('tanh'))
+    # model.add(Dense(10))
+    # model.add(Activation('softmax'))
+    #
+    # sgd = SGD(lr=0.01, decay=1e-5, momentum=0.9, nesterov=True)
+    # model.compile(loss='mean_squared_error', optimizer=sgd, metrics=['accuracy'])
+    #
+    # training = model.fit(trening, train_out, nb_epoch=20, batch_size=400, verbose=1)
+    # print training.history['loss'][-1]
+    #
+    # model.save('model.h5')
 
     suma = 0
     for ii in range(0,len(prelazeci)):
-        putanja = "C:\\Users\\Stefan\\Desktop\\Videos\\" + "noveslike2" + str(ii) + ".png"
+        putanja = 'noveslike/broj-'+str(ii) + '.png'
         imagePred = imread(putanja)
         prediction = model.predict(imagePred.reshape(1, 784), verbose=1)
         vrednost = np.argmax(prediction)
